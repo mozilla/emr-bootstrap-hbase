@@ -1,0 +1,21 @@
+[
+  {
+    "Classification": "hbase-site",
+    "Properties": {
+        "hbase.rootdir": "{{rootdir}}",
+        "hbase.bucketcache.size": "8192",
+        "hbase.region.memstore.flush.size": "134217728",
+        "hbase.region.memstore.block.multiplier": "4",
+        "hbase.hstore.blockingStoreFiles": "10",
+        "hbase.hregion.max.filesize": "10737418240",
+        "zookeeper.session.timeout": "60000",
+        "hbase.regionserver.handler.count": "30"
+    }
+  },
+  {
+    "Classification": "hbase",
+    "Properties": {
+      "hbase.emr.storageMode": "s3"
+    }
+  }
+]

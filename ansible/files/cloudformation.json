@@ -1,0 +1,105 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Cloudformation template for HBase",
+  "Parameters": {
+    "HBaseBucket": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "TelemetryHBaseRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "telemetry-hbase-emr",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "ec2:AssociateAddress",
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "dynamodb:*",
+                  "Resource": "arn:aws:dynamodb:us-west-2:927034868273:table/EmrFSMetadata"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": ["*"],
+                  "Resource": [
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:aws:s3:::",
+                          {
+                            "Ref": "HBaseBucket"
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:aws:s3:::",
+                          {
+                            "Ref": "HBaseBucket"
+                          },
+                          "/*"
+                        ]
+                      ]
+                    },
+                    "arn:aws:s3:::telemetry-hbase",
+                    "arn:aws:s3:::telemetry-hbase/*",
+                    "arn:aws:s3:::telemetry-test-bucket",
+                    "arn:aws:s3:::telemetry-test-bucket/*",
+                    "arn:aws:s3:::us-west-2.elasticmapreduce",
+                    "arn:aws:s3:::us-west-2.elasticmapreduce/*"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "TelemetryHBaseInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "TelemetryHBaseRole"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceProfile": {
+      "Description": "HBase instance profile",
+      "Value": {
+        "Ref": "TelemetryHBaseInstanceProfile"
+      }
+    }
+  }
+}

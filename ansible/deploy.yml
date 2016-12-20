@@ -1,0 +1,57 @@
+- name: provision aws resources
+  hosts: localhost
+  remote_user: ubuntu
+  vars:
+    - region: us-west-2
+    - bucket: telemetry-hbase
+    - key: 20161025-dataops-dev
+    - rootdir: s3://telemetry-hbase/hbase-root
+    - instance_count: 10
+    - instance_type: m4.xlarge
+    - subnet_id: subnet-b2c3d5f4
+    - eip_id: eipalloc-b3c764d6
+
+  tasks:
+    - name: create bucket
+      s3: bucket={{bucket}} region={{region}} mode=create
+
+    - name: cloudformate
+      cloudformation:
+        stack_name: "telemetry-hbase-cloudformation"
+        state: "present"
+        region: "{{region}}"
+        disable_rollback: true
+        template: "files/cloudformation.json"
+        tags:
+          type: "telemetry"
+          application: "hbase"
+        template_parameters:
+          HBaseBucket: "{{bucket}}"
+      register: cloudformation
+
+    - template:
+        src: files/startup.sh.j2
+        dest: files/startup.sh
+
+    - name: copy EMR bootstrap script
+      s3: bucket={{bucket}} region={{region}} object=steps/startup.sh src=files/startup.sh mode=put
+
+    - template:
+        src: files/configuration.json.j2
+        dest: files/configuration.json
+
+    - name: create HBase cluster
+      shell: aws emr create-cluster
+         --region {{region}}
+         --name HBaseCluster
+         --instance-type {{instance_type}}
+         --instance-count {{instance_count}}
+         --service-role EMR_DefaultRole
+         --ec2-attributes KeyName={{key}},InstanceProfile={{cloudformation.stack_outputs.InstanceProfile}},SubnetId={{subnet_id}}
+         --release-label emr-5.2.0
+         --applications Name=HBase
+         --configurations file://files/configuration.json
+         --emrfs Consistent=true
+         --tags App="telemetry" Name="telemetry-hbase" Owner="rvitillo@mozilla.com" REAPER_SPARE_ME="true" Type="hbase"
+         --steps Type=CUSTOM_JAR,Name=CustomJAR,ActionOnFailure=TERMINATE_JOB_FLOW,Jar=s3://us-west-2.elasticmapreduce/libs/script-runner/script-runner.jar,Args=\["s3://{{bucket}}/steps/startup.sh"\]
+         --log-uri s3://{{bucket}}/logs
